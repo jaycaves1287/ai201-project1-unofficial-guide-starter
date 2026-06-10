@@ -9,9 +9,11 @@
 
 ## Domain
 
-<!-- What domain did you choose? Why is this knowledge valuable and hard to find through official channels? 
-The domain I chose is Upper Division Computer Science Professor Reviews at the University of California, Santa Cruz. Right now a student has to maneuvar between the course list, curriculum chart, 
-rate my professor to understand if a professor/class is worth to take.-->
+<!-- What domain did you choose? Why is this knowledge valuable and hard to find through official channels? -->
+
+The domain I chose is upper-division computer science professor reviews at the University of California, Santa Cruz.
+Right now, a student has to move between the course list, curriculum chart, and Rate My Professors to understand if a
+professor or class is worth taking.
 
 ---
 
@@ -72,6 +74,7 @@ rate my professor to understand if a professor/class is worth to take.-->
 | 48 | Reddit - CMPE/CSE 150/L with Parsa? | Older but useful networking-course feedback. | https://www.reddit.com/r/UCSC/comments/dvdvuv/cmpecse_150l_with_parsa/ |
 | 49 | Reddit - Thoughts on CSE 182 and CSE 150? | Covers Nikos Tziavelis and Chen Qian together. | https://www.reddit.com/r/UCSC/comments/1itgxzk/thoughts_on_cse_182_and_cse_150/ |
 | 50 | Reddit - CSE Students, favorite CSE courses/professors | Broader student opinions across upper-division CSE. | https://www.reddit.com/r/UCSC/comments/n5cvlh/cse_students_what_are_some_of_your_favorite_cse/ |
+| 51 | Reddit - CSE 143? | Student comments about CSE143/NLP, including class interest level and whether ML or AI background is needed. | https://www.reddit.com/r/UCSC/comments/sndywa/cse_143/ |
 
 
 ---
@@ -84,11 +87,14 @@ rate my professor to understand if a professor/class is worth to take.-->
      A review-heavy corpus warrants different chunking than a long FAQ. -->
 
 **Chunk size:**
-
+Each Chunk will be one complete review or one complete reddit comment.If a Reddit post/comment is
+  unusually long, split it by paragraph or sentence around roughly 300-400 tokens.
 **Overlap:**
-
+No overlap for RMP the idea is that the whole review stays together. Use about 40-60 tokens of overlap only when
+  splitting a long Reddit comment, so an idea that spans a boundary does not get cut off.
 **Reasoning:**
-
+The docs are already divided in a meaningful way. One review has enough context needed so it makes sense for that to be
+all that is needed for a chunk. 
 ---
 
 ## Retrieval Approach
@@ -100,10 +106,18 @@ rate my professor to understand if a professor/class is worth to take.-->
      support, accuracy on domain-specific text, latency? -->
 
 **Embedding model:**
-
+all-MiniLM-L6-v2 through sentence-transformers, free and local.
 **Top-k:**
+Use dynamic top-k. For normal questions, retrieve the top 5 chunks. If the question names a specific professor,
+retrieve up to 3 chunks for that professor. If the question asks about a class or compares professors for a class,
+retrieve up to 3 chunks per relevant professor, with a cap of about 12 chunks total so the answer has enough context
+without pulling in too much noise.
 
 **Production tradeoff reflection:**
+For this project, I want an embedding model that works well on short, casual student reviews and is easy to run locally.
+If this were for real users, I would compare accuracy, speed, cost, privacy, and context length. A bigger API model might
+understand vague or messy student wording better, but a local model is cheaper, faster to test, and does not require
+sending all review text to an outside service.
 
 ---
 
@@ -116,11 +130,11 @@ rate my professor to understand if a professor/class is worth to take.-->
 
 | # | Question | Expected answer |
 |---|----------|-----------------|
-| 1 | | |
-| 2 | | |
-| 3 | | |
-| 4 | | |
-| 5 | | |
+| 1 | What do students say about Alexander Rudnick's teaching style? | Students mostly describe Rudnick as passionate, helpful, and good at explaining concepts. Reviews also mention examples, demos, Discord help, and lectures that feel engaging. |
+| 2 | What do students say about the workload and assignments in Rudnick's classes? | Students say the workload is usually manageable if you do not procrastinate. Some reviews mention clear assignment instructions, helpful demos, and homework that can be challenging but fair. |
+| 3 | What concerns or downsides do students mention about Alexander Rudnick? | Most feedback is positive, but some students mention slow email replies, slow grading, ungraded extra credit, and occasional classroom management issues. |
+| 4 | What do students say about CSE143 / NLP at UCSC? | Students describe CSE143/NLP as fun and interesting, especially for people interested in linguistics, machine learning, AI, and language-related topics. |
+| 5 | Do students think ML or AI experience is needed before taking CSE143? | Students say ML or AI experience can help, but it is not required. People without that background can still do fine if they are interested and keep up with the class. |
 
 ---
 
@@ -130,9 +144,11 @@ rate my professor to understand if a professor/class is worth to take.-->
      Consider: noisy or inconsistent documents, missing source attribution, off-topic
      retrieval, chunks that split key information across boundaries. -->
 
-1.
+1. Retrieval might pull noisy or weakly related chunks. A query like "best professor for CSE143" could retrieve reviews that
+mention Rudnick or NLP but do not actually answer the comparison part of the question.
 
-2.
+2. Source attribution could be wrong if chunk metadata is attached incorrectly. Since each review/comment needs its own
+professor, course, URL, and chunk position, a metadata bug could make the system cite the wrong review or source.
 
 ---
 
@@ -143,6 +159,61 @@ rate my professor to understand if a professor/class is worth to take.-->
      Label each stage with the tool or library you're using.
      You can use ASCII art, a Mermaid diagram, or embed a sketch as an image.
      You'll use this diagram as context when prompting AI tools to implement each stage. -->
+
+```text
+Raw Sources
+  - Rate My Professors copied reviews
+  - Reddit copied posts/comments
+  - UCSC CSE catalog notes
+        |
+        v
+[1] Document Ingestion
+    Tool: Python + pathlib
+    Output: loaded text with source file and source URL
+        |
+        v
+[2] Cleaning / Preprocessing
+    Tool: Python string cleanup + regex
+    Removes: nav text, repeated labels, empty lines, HTML leftovers
+    Keeps: review text, ratings, course names, professor names, tags
+        |
+        v
+[3] Chunking
+    Tool: custom Python chunk_text function
+    RMP: one complete review = one chunk
+    Reddit: one post/comment = one chunk
+    Long Reddit comments: split around 300-400 tokens with 40-60 token overlap
+        |
+        v
+[4] Embedding + Vector Store
+    Embedding tool: sentence-transformers
+    Embedding model: all-MiniLM-L6-v2
+    Vector store: ChromaDB
+    Stored metadata: professor, course, source URL, source type, chunk index
+        |
+        v
+[5] Retrieval
+    Tool: ChromaDB similarity search
+    Query logic: detect professor/course names when possible
+    Top-k: top 5 normally, up to 3 chunks per professor, cap around 12 total
+        |
+        v
+[6] Grounded Generation
+    Tool: Groq API with llama-3.3-70b-versatile
+    Prompt rule: answer only from retrieved chunks
+    Output: plain-language answer with source citations
+        |
+        v
+Query Interface
+    Tool: Gradio or CLI
+    User sees: answer + cited source chunks
+```
+
+This follows the outline's required pipeline: ingestion, chunking, embedding/vector store, retrieval, and generation.
+The main design choice is that reviews and comments stay whole because they are already meaningful student statements.
+Metadata is important because the final answer needs to cite which professor, course, and source each chunk came from.
+Retrieval uses semantic search, but the query step also checks for professor or course names so comparison questions can
+pull a few reviews per relevant professor instead of only returning one overall top-k list.
 
 ---
 
