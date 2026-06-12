@@ -230,7 +230,40 @@ pull a few reviews per relevant professor instead of only returning one overall 
      with my specified chunk size and overlap" is a plan. -->
 
 **Milestone 3 — Ingestion and chunking:**
+I will give the AI my Documents, Chunking Strategy, and Architecture sections and ask it to help build the RMP ingestion
+and chunking pipeline. I expect it to help write Python code that live-scrapes the selected Rate My Professors pages,
+extracts the embedded review data, cleans the text, and turns each non-empty review into one chunk with professor,
+course, URL, rating, and chunk index metadata. I will verify the output by running pytest, running the chunk-building
+script, checking the total chunk count, and reading at least 5 printed sample chunks to make sure they are readable and
+cited to the right professor/source.
 
 **Milestone 4 — Embedding and retrieval:**
+I will give the AI my Retrieval Approach, Architecture, and Anticipated Challenges sections and ask it to build the
+embedding and retrieval layer around my existing review chunks. I expect it to help write code that loads
+`data/chunks/rmp_chunks.jsonl`, embeds each chunk with `all-MiniLM-L6-v2`, stores the chunks in ChromaDB, and keeps
+metadata like professor, course, source URL, and chunk index attached to every stored review.
+
+I will also ask the AI to implement the query logic from my top-k plan. A normal question should retrieve about 5 chunks,
+a professor question should retrieve up to 3 chunks for that professor, and a course comparison question should retrieve
+about 3 chunks per professor for that course. The retrieval code should detect professor names and CSE course numbers,
+then use metadata filters so unrelated chunks do not crowd out the useful ones.
+
+I will verify this by running pytest, rebuilding the vector store, and testing real queries from my Evaluation Plan. For
+example, I will check that a Rudnick question returns Rudnick chunks, a CSE130 question returns only CSE130 chunks across
+multiple professors, and a Rudnick + CSE143 question returns no chunks if the scraped data does not actually contain a
+matching Rudnick CSE143 review.
 
 **Milestone 5 — Generation and interface:**
+I will give the AI my Retrieval Approach, Evaluation Plan, Anticipated Challenges, and Architecture sections and ask it
+to build the final grounded answer layer. I expect it to help write code that takes the retrieved ChromaDB chunks,
+formats them into numbered evidence blocks, sends them to Groq with a strict prompt, and returns a short answer with
+citations like `[1]` and `[2]`.
+
+I will also ask the AI to build a CLI interface instead of a web app for this milestone. The CLI should load the chunk
+file, connect to the existing ChromaDB collection, use `GROQ_API_KEY` from `.env`, call the answer pipeline, and print
+an answer plus a sources list. It should not hardcode secrets, and it should give a clear error if the API key or vector
+store is missing.
+
+I will verify this by running pytest and then testing the CLI with my evaluation questions. I will check that Rudnick
+questions return Rudnick citations, CSE130 questions only cite CSE130 chunks, and questions without matching evidence
+say there is not enough review data instead of making up an answer.

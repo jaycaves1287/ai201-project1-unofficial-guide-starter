@@ -8,9 +8,16 @@ __pycache__/
 .venv/
 venv/
 env/
+.coverage
+htmlcov/
+.pytest_cache/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# IDE and local assignment notes
+.idea/
+outline.txt
 
 # ChromaDB local storage
 chroma_db/
