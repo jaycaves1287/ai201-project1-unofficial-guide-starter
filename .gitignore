@@ -18,6 +18,8 @@ htmlcov/
 # IDE and local assignment notes
 .idea/
 outline.txt
+.demo/
+artifacts/
 
 # ChromaDB local storage
 chroma_db/
