@@ -178,7 +178,7 @@ It then applies ChromaDB metadata filters and dynamic top-k rules:
   12 chunks.
 - Named professor and course: up to 3 chunks matching both fields.
 
-### Retrieval Test 1: Teaching style
+### Retrieval Check 1: Teaching style
 
 Query:
 
@@ -199,7 +199,7 @@ about overall approval rather than teaching style, so the set is relevant but
 not perfectly ranked. The distances are also above the assignment's preferred
 0.5 checkpoint.
 
-### Retrieval Test 2: Workload and assignments
+### Retrieval Check 2: Workload and assignments
 
 Query:
 
@@ -219,7 +219,7 @@ Only the first chunk directly answers the question. The professor metadata
 filter keeps the results on Rudnick, but semantic ranking still returns two
 weak chunks. This makes the retrieval quality partially relevant.
 
-### Retrieval Test 3: Concerns and downsides
+### Retrieval Check 3: Concerns and downsides
 
 Query:
 
@@ -240,7 +240,7 @@ positive reviews. The generated answer succeeds because all three chunks are
 passed to the model. This is still a retrieval weakness because reducing
 top-k would have removed the useful evidence.
 
-### Retrieval Test 4: Missing CSE143 evidence
+### Retrieval Check 4: Missing CSE143 evidence
 
 Query:
 
@@ -466,7 +466,7 @@ and official course context, but the implemented corpus only includes 12 RMP
 pages. This reduced scraping complexity and allowed the full RAG pipeline to be
 finished and tested, but it left the two planned CSE143 questions unsupported.
 The evaluation keeps those questions and reports the gap instead of changing
-the test plan after seeing the results.
+the evaluation plan after seeing the results.
 
 ## AI Usage
 
@@ -481,8 +481,8 @@ the test plan after seeing the results.
 - **What I changed or overrode:** I kept the implementation limited to the 12
   first-pass RMP sources rather than pretending all planned sources were
   ingested. I also required empty reviews to be removed, HTML entities to be
-  decoded, source URLs and rating IDs to be stored, and tests to verify the
-  exact metadata.
+  decoded, source URLs and rating IDs to be stored, and manual chunk inspection
+  to verify the exact metadata.
 
 ### Instance 2: Retrieval, generation, and CLI
 
@@ -494,24 +494,35 @@ the test plan after seeing the results.
 - **What I changed or overrode:** I required metadata filtering for named
   professors and courses, programmatic source output instead of trusting the
   LLM to write URLs, a fixed refusal when retrieval returns no chunks, and
-  environment-based API key loading. I also tested the generated logic with
-  fake embeddings and fake generators before running the live model.
+  environment-based API key loading. I also checked retrieval output directly
+  before running the live model.
 
-## Tests
+## Verification
 
-Run the complete suite:
-
-```bat
-pytest -q
-```
-
-Run the coverage gate:
+Check that all Python files compile:
 
 ```bat
-pytest --cov=src\unofficial_guide --cov-report=term-missing -q
+python -m compileall -q src scripts
 ```
 
-The final verification result is 24 passing tests with 82% statement coverage.
+Rebuild the local vector store and confirm all 58 chunks are stored:
+
+```bat
+python scripts\build_vector_store.py
+```
+
+Inspect retrieval without calling the language model:
+
+```bat
+python scripts\query_chunks.py "What do students say about Alexander Rudnick's teaching style?"
+```
+
+Finally, run the grounded CLI and confirm the answer contains numbered
+citations and a source list:
+
+```bat
+python scripts\ask_guide.py "What do students say about Alexander Rudnick's teaching style?"
+```
 
 ## Dependency Security
 
